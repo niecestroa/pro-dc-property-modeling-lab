@@ -1,0 +1,310 @@
+---
+title: "DC Property ML — Regression & Classification Models"
+author: "Aaron Niecestro"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    theme: flatly
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                      fig.width = 9, fig.height = 5, dpi = 150)
+library(here)
+
+# Source all modules
+source(here("src",   "01_load_config.R"))
+source(here("src",   "02_load_data.R"))
+source(here("src",   "03_split_data.R"))
+source(here("src",   "04_feature_engineering.R"))
+source(here("src",   "05_models_linear.R"))
+source(here("src",   "06_models_polynomial.R"))
+source(here("src",   "07_models_knn.R"))
+source(here("src",   "08_models_lda_qda.R"))
+source(here("src",   "09_models_ridge_lasso.R"))
+source(here("src",   "10_models_pcr_pls.R"))
+source(here("src",   "11_models_trees.R"))
+source(here("src",   "12_models_random_forest.R"))
+source(here("src",   "13_models_svm.R"))
+source(here("src",   "14_evaluate.R"))
+source(here("utils", "utils_io.R"))
+source(here("utils", "utils_plots.R"))
+source(here("utils", "utils_preprocessing.R"))
+
+cfg <- load_config()
+set_project_seed(cfg)
+ensure_output_dirs(cfg)
+```
+
+## 1. Load Splits
+
+```{r load-splits}
+splits  <- load_splits(cfg)
+train   <- splits$train
+test    <- splits$test
+labeled <- add_classification_labels(train, test, cfg)
+train_c <- labeled$train
+test_c  <- labeled$test
+
+cat(sprintf("Train: %d rows | Test: %d rows\n", nrow(train), nrow(test)))
+```
+
+## 2. Feature Engineering
+
+```{r features}
+train_poly <- add_polynomial_features(train, cfg)
+test_poly  <- add_polynomial_features(test,  cfg)
+train_Xy   <- build_Xy(train_poly)
+test_Xy    <- build_Xy(test_poly)
+
+cat(sprintf("Polynomial feature matrix: %d columns\n", ncol(train_Xy$X)))
+```
+
+---
+
+## 3. Regression Models
+
+### 3.1 Simple & Multiple Linear Regression
+
+```{r linear}
+lm_model <- fit_linear(train)
+summary(lm_model)
+```
+
+**Variable selection (AIC / BIC):**
+
+```{r variable-selection, eval=FALSE}
+# These are slow on the full dataset — run interactively
+lm_aic <- select_by_aic(train)
+lm_bic <- select_by_bic(train)
+```
+
+```{r linear-diag}
+save_residual_plots(lm_model, cfg, tag = "linear_diagnostics")
+knitr::include_graphics(file.path(here(cfg$paths$plot_dir), "linear_diagnostics.png"))
+```
+
+```{r vif}
+vif_vals <- check_vif(lm_model)
+knitr::kable(data.frame(Predictor = names(vif_vals), VIF = round(vif_vals, 3)),
+             caption = "Variance Inflation Factors — Linear Model")
+```
+
+### 3.2 Polynomial Regression
+
+Polynomial powers from paper: Bathrooms^8, Bedrooms^8, Fireplaces^4,
+AYB_age^5, EYB_age^4, Remodel_age^4 + Bathrooms × Condition interactions.
+
+```{r polynomial, cache=TRUE}
+poly_model  <- fit_polynomial(train, cfg)
+summary(poly_model)
+```
+
+```{r poly-outliers}
+outlier_idx   <- detect_outliers(poly_model)
+cat(sprintf("Bonferroni outliers found: %d\n", length(outlier_idx)))
+
+poly_refitted <- refit_without_outliers(train, cfg, outlier_idx)
+poly_model    <- poly_refitted$model
+```
+
+```{r poly-diag}
+save_diagnostic_plots(poly_model, cfg)
+knitr::include_graphics(file.path(here(cfg$paths$plot_dir), "polynomial_diagnostics.png"))
+```
+
+### 3.3 Ridge Regression
+
+```{r ridge, cache=TRUE}
+ridge_model <- fit_ridge(train_Xy, cfg)
+save_cv_plot(ridge_model, cfg, "ridge_cv")
+save_coef_path_plot(ridge_model, cfg, "ridge_coef_path")
+knitr::include_graphics(file.path(here(cfg$paths$plot_dir), "ridge_cv_lambda.png"))
+```
+
+```{r ridge-eval}
+ridge_eval <- eval_ridge(ridge_model, test_Xy)
+cat(sprintf("Ridge Test MSE: %.2f\n", ridge_eval$mse))
+```
+
+### 3.4 Lasso Regression
+
+```{r lasso, cache=TRUE}
+lasso_model <- fit_lasso(train_Xy, cfg)
+save_cv_plot(lasso_model, cfg, "lasso_cv")
+knitr::include_graphics(file.path(here(cfg$paths$plot_dir), "lasso_cv_lambda.png"))
+```
+
+```{r lasso-eval}
+lasso_eval <- eval_lasso(lasso_model, test_Xy)
+cat(sprintf("Lasso Test MSE: %.2f | Non-zero coefs: %d\n",
+            lasso_eval$mse, lasso_eval$n_nonzero))
+compare_ridge_lasso(ridge_eval, lasso_eval)
+```
+
+### 3.5 Principal Component Regression (PCR)
+
+```{r pcr, cache=TRUE}
+pcr_model <- fit_pcr(train_poly, cfg)
+save_rmsep_plot(pcr_model, cfg, "pcr_rmsep")
+knitr::include_graphics(file.path(here(cfg$paths$plot_dir), "pcr_rmsep.png"))
+pcr_eval  <- eval_pcr(pcr_model, test_poly)
+```
+
+### 3.6 Partial Least Squares (PLS)
+
+```{r pls, cache=TRUE}
+pls_model <- fit_pls(train_poly, cfg)
+save_rmsep_plot(pls_model, cfg, "pls_rmsep")
+knitr::include_graphics(file.path(here(cfg$paths$plot_dir), "pls_rmsep.png"))
+pls_eval  <- eval_pls(pls_model, test_poly)
+```
+
+*Paper finding: RMSEP stabilises at ~3 components for PLS vs. 29 for PCR.*
+
+### 3.7 Regression Tree + Pruning
+
+```{r tree}
+tree_model  <- fit_tree(train, cfg)
+save_cp_plot(tree_model, cfg)
+pruned_tree <- prune_tree(tree_model, cfg)
+save_tree_plot(pruned_tree, cfg, "tree_pruned")
+knitr::include_graphics(file.path(here(cfg$paths$plot_dir), "tree_pruned.png"))
+tree_eval   <- eval_tree(pruned_tree, test)
+cat(sprintf("Pruned Tree Test MSE: %.4f\n", tree_eval$mse))
+```
+
+### 3.8 Random Forest & Bagging
+
+```{r rf, cache=TRUE}
+rf_model   <- fit_random_forest(train, cfg, ntree = 500)
+save_rf_error_plot(rf_model, cfg, "rf_oob_error_full")
+save_importance_plot(rf_model, cfg, "rf_importance_full")
+knitr::include_graphics(file.path(here(cfg$paths$plot_dir), "rf_importance_full.png"))
+```
+
+**Optimal Random Forest (Bathrooms, Rooms, Bedrooms, Stories, Kitchens, Fireplaces):**
+
+```{r rf-optimal, cache=TRUE}
+rf_optimal <- fit_optimal_rf(train, cfg)
+save_importance_plot(rf_optimal, cfg, "rf_importance_optimal")
+knitr::include_graphics(file.path(here(cfg$paths$plot_dir), "rf_importance_optimal.png"))
+rf_eval    <- eval_rf(rf_optimal, test)
+cat(sprintf("Optimal RF Test MSE: %.4f\n", rf_eval$mse))
+```
+
+---
+
+## 4. Classification Models
+
+### 4.1 K-Nearest Neighbors (KNN)
+
+Classification target: **class_mean** (Reasonable / Overpriced at threshold 57.725)
+
+```{r knn, cache=TRUE}
+knn_results <- knn_loop(train_c, test_c, cfg = cfg, class_col = "class_mean")
+plot_knn_error(knn_results, cfg)
+knitr::include_graphics(file.path(here(cfg$paths$plot_dir), "knn_error_vs_k.png"))
+```
+
+```{r knn-best}
+best_k   <- knn_results$k[which.min(knn_results$mse)]
+knn_best <- run_knn(train_c, test_c, k = best_k, class_col = "class_mean")
+cat(sprintf("Best k = %d | Misclassification rate = %.7f\n", best_k, knn_best$mse))
+```
+
+### 4.2 Linear Discriminant Analysis (LDA)
+
+```{r lda}
+lda_model <- fit_lda(train_c, "class_mean", priors = cfg$models$lda$priors_equal)
+lda_eval  <- eval_lda(lda_model, test_c, "class_mean")
+cat(sprintf("LDA Correct Classification Rate: %.7f\n", lda_eval$correct_rate))
+print(lda_eval$confusion)
+```
+
+### 4.3 Quadratic Discriminant Analysis (QDA)
+
+```{r qda}
+qda_model <- fit_qda(train_c, "class_mean", priors = cfg$models$qda$priors_equal)
+qda_eval  <- eval_qda(qda_model, test_c, "class_mean")
+cat(sprintf("QDA Correct Classification Rate: %.7f\n", qda_eval$correct_rate))
+print(qda_eval$confusion)
+```
+
+```{r lda-qda-compare}
+lda_qda_table <- compare_lda_qda(train_c, test_c, "class_mean", cfg)
+knitr::kable(lda_qda_table, digits = 7, caption = "LDA vs QDA — Correct Classification Rates")
+```
+
+### 4.4 Support Vector Machine (SVM)
+
+Classification target: **class_median** (Under / Over at threshold 44.365)
+
+```{r svm-scatter}
+save_svm_scatter(test_c, "class_median", cfg)
+knitr::include_graphics(file.path(here(cfg$paths$plot_dir), "svm_scatter.png"))
+```
+
+```{r svm-kernels, cache=TRUE}
+svm_table <- compare_svm_kernels(train_c, test_c, "class_median", cfg)
+knitr::kable(svm_table, digits = 7, caption = "SVM — Kernel Comparison")
+```
+
+---
+
+## 5. Model Comparison
+
+```{r reg-compare}
+lm_pred   <- predict(lm_model,   newdata = test)
+poly_pred <- predict(poly_model, newdata = test)
+
+reg_results <- list(
+  "Linear Regression"       = list(actual = test$Price_10K, pred = lm_pred),
+  "Polynomial Regression"   = list(actual = test$Price_10K, pred = poly_pred),
+  "PCR"                     = list(actual = test$Price_10K, pred = pcr_eval$pred),
+  "PLS"                     = list(actual = test$Price_10K, pred = pls_eval$pred),
+  "Regression Tree (Pruned)"= list(actual = test$Price_10K, pred = tree_eval$pred),
+  "Random Forest (Optimal)" = list(actual = test$Price_10K, pred = rf_eval$pred)
+)
+
+reg_table <- regression_comparison_table(reg_results)
+knitr::kable(reg_table, digits = 4, caption = "Regression Model Comparison — Test Metrics")
+```
+
+```{r mse-bar}
+save_mse_bar_chart(reg_table, cfg)
+knitr::include_graphics(file.path(here(cfg$paths$plot_dir), "model_mse_comparison.png"))
+```
+
+```{r cls-compare}
+svm_best_kernel <- svm_table$Kernel[which.min(svm_table$Misclassification_Rate)]
+svm_best        <- fit_svm(train_c, kernel = svm_best_kernel, class_col = "class_median", cfg = cfg)
+svm_eval        <- eval_svm(svm_best, test_c, "class_median")
+
+cls_results <- list(
+  "KNN (Best k)"        = list(actual = test_c$class_mean,   pred = knn_best$pred),
+  "LDA (equal priors)"  = list(actual = test_c$class_mean,   pred = lda_eval$pred),
+  "QDA (equal priors)"  = list(actual = test_c$class_mean,   pred = qda_eval$pred),
+  "SVM (Best Kernel)"   = list(actual = test_c$class_median, pred = svm_eval$pred)
+)
+
+cls_table <- classification_comparison_table(cls_results)
+knitr::kable(cls_table, digits = 7, caption = "Classification Model Comparison")
+```
+
+---
+
+## 6. Conclusions
+
+From the paper's findings (reproduced by this refactored pipeline):
+
+1. **Best regression predictors**: Longitude, Bathrooms, Fireplaces, AYB_age, EYB_age, Grade
+2. **Best regression model**: Polynomial regression (Adj. R² ≈ 69%, RSE ≈ 31.12)
+3. **Classification models** outperform linear/logistic baselines (correct rates ~0.81)
+4. **LDA** (0.8093) slightly outperforms QDA (0.8061) without priors
+5. **Random Forest** most important variable: Bathrooms (optimal); Longitude (full forest)
+6. **Next steps**: Combine Bayesian hierarchical models with ML ensemble methods

@@ -1,0 +1,45 @@
+# =============================================================================
+# 00_load_packages.R
+# Load all libraries and source all project helper files.
+# =============================================================================
+
+# Load libraries
+library(dplyr)
+library(tidyr)
+library(readr)
+library(purrr)
+library(tibble)
+library(rlang)
+library(yaml)
+library(here)
+library(MASS)
+library(glmnet)
+library(pls)
+library(class)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(e1071)
+library(ranger)
+library(car)
+library(ggplot2)
+library(GGally)
+library(rmarkdown)
+library(knitr)
+library(kableExtra)
+
+# Source project helper files
+source("R/01_load_config.R")
+source("R/03_split_data.R")
+source("R/04_feature_engineering.R")
+source("R/05_models_linear.R")
+source("R/06_models_polynomial.R")
+source("R/07_models_knn.R")
+source("R/08_models_lda_qda.R")
+source("R/09_models_ridge_lasso.R")
+source("R/10_models_pcr_pls.R")
+source("R/11_models_trees.R")
+source("R/12_models_random_forest.R")
+source("R/13_svm.R")
+source("R/14_evaluate.R")
+source("R/regression_metrics.R")

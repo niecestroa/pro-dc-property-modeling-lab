@@ -1,0 +1,5 @@
+"Model","Accuracy","Misclassification_Rate"
+"KNN (Best k)",0.9358,0.0642
+"LDA (equal priors)",0.861,0.139
+"QDA (equal priors)",0.9078,0.0922
+"SVM (Best Kernel)",0.9351,0.0649

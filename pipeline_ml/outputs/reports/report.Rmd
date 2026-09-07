@@ -1,0 +1,195 @@
+---
+title: "DC Property ML — Model Comparison Report"
+author: "Aaron Niecestro"
+date: "`r Sys.Date()`"
+output:
+  word_document:
+    toc: true
+    toc_depth: '3'
+  html_document:
+    theme: readable
+    toc: true
+    toc_depth: 3
+    number_sections: true
+---
+
+# DO NOT KNIT DOCUMENT - Works as Rmarkdown ONLY
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = TRUE, warning = FALSE)
+
+library(dplyr)
+library(ggplot2)
+library(yaml)
+library(rprojroot)
+
+# Find project root
+root <- rprojroot::find_root(rprojroot::has_dir("config"))
+
+# Force knitr to use project root for all file paths
+knitr::opts_knit$set(root.dir = root)
+
+# Load config
+config <- yaml::read_yaml(file.path(root, "config", "config.yaml"))
+cfg    <- config
+
+# Remove trailing slash from plot_dir
+plot_dir <- sub("/$", "", cfg$paths$plot_dir)
+
+# Load data
+train <- readRDS(file.path(root, cfg$paths$train_data))
+test  <- readRDS(file.path(root, cfg$paths$test_data))
+
+# Load regression comparison table
+reg_table <- read.csv(file.path(root, "outputs", "tables", "run_log.csv"))
+
+# Load classification tables
+cls_table_mean   <- readRDS(file.path(root, cfg$paths$model_dir, "classification_mean_table.rds"))
+cls_table_median <- readRDS(file.path(root, cfg$paths$model_dir, "classification_median_table.rds"))
+```
+
+# Executive Summary
+
+This report evaluates machine learning models for predicting and classifying residential property prices in Washington, DC.
+
+The analysis now includes **two separate binary classification frameworks**:
+
+- **Mean Threshold Classification**  
+  *Reasonable vs Overpriced*  
+  Models: **KNN, LDA, QDA, SVM**
+
+- **Median Threshold Classification**  
+  *Underpriced vs Overpriced*  
+  Models: **KNN, LDA, QDA, SVM**
+
+Regression models continue to provide strong continuous predictions, while binary classification offers interpretable threshold‑based decision support.
+
+---
+
+# Regression Model Comparison
+
+```{r}
+knitr::kable(reg_table, caption = "Regression Model Comparison (Test Set)")
+```
+
+---
+
+# Binary Classification — Mean Threshold
+
+```{r}
+knitr::kable(cls_table_mean, caption = "Mean Threshold Classification — Model Comparison")
+```
+
+### Accuracy Bar Chart
+
+```{r echo=FALSE}
+knitr::include_graphics(
+  file.path(root, plot_dir, "classification_mean.png")
+)
+```
+
+---
+
+# Binary Classification — Median Threshold
+
+```{r}
+knitr::kable(cls_table_median, caption = "Median Threshold Classification — Model Comparison")
+```
+
+### Accuracy Bar Chart
+
+```{r echo=FALSE}
+knitr::include_graphics(
+  file.path(root, plot_dir, "classification_median.png")
+)
+```
+
+---
+
+# Combined Comparison Table
+
+```{r}
+combined_cls_table <- dplyr::bind_rows(
+  cls_table_mean %>% mutate(Threshold = "Mean"),
+  cls_table_median %>% mutate(Threshold = "Median")
+) %>%
+  dplyr::select(Threshold, everything())
+
+knitr::kable(combined_cls_table,
+             caption = "Combined Binary Classification Comparison (Mean vs Median)")
+```
+
+---
+
+# Side-by-Side Mean vs Median Visualization
+
+```{r}
+combined_plot_data <- dplyr::bind_rows(
+  cls_table_mean %>% mutate(Threshold = "Mean"),
+  cls_table_median %>% mutate(Threshold = "Median")
+)
+
+combined_plot <- ggplot(combined_plot_data,
+                        aes(x = Model, y = Accuracy, fill = Threshold)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  labs(title = "Classification Accuracy: Mean vs Median Threshold",
+       x = "Model",
+       y = "Accuracy") +
+  theme_minimal(base_size = 14) +
+  scale_fill_brewer(palette = "Set2")
+
+ggsave(
+  filename = file.path(root, plot_dir, "classification_mean_vs_median.png"),
+  plot = combined_plot,
+  width = 10,
+  height = 6
+)
+
+knitr::include_graphics(
+  file.path(root, plot_dir, "classification_mean_vs_median.png")
+)
+```
+
+---
+
+# Model Ranking Summary
+
+```{r}
+ranking_mean <- cls_table_mean %>%
+  arrange(desc(Accuracy)) %>%
+  mutate(Threshold = "Mean")
+
+ranking_median <- cls_table_median %>%
+  arrange(desc(Accuracy)) %>%
+  mutate(Threshold = "Median")
+
+ranking_combined <- bind_rows(ranking_mean, ranking_median) %>%
+  select(Threshold, Model, Accuracy, Misclassification_Rate)
+
+knitr::kable(
+  ranking_combined,
+  caption = "Model Ranking Summary — Mean vs Median Thresholds"
+)
+```
+
+---
+
+# Visual Comparison
+
+```{r echo=FALSE}
+knitr::include_graphics(
+  file.path(root, plot_dir, "classification_mean.png")
+)
+knitr::include_graphics(
+  file.path(root, plot_dir, "classification_median.png")
+)
+```
+
+---
+
+# Final Interpretation
+
+Across all modeling approaches, ensemble tree‑based regression methods provide the most accurate continuous price predictions.  
+For binary classification, SVM consistently performs well under both mean and median thresholds, while KNN benefits from neighborhood‑level structure.  
+LDA and QDA offer interpretable boundaries and competitive performance under balanced class splits.  
+Both threshold‑based classification frameworks provide useful segmentation depending on analytical objectives.

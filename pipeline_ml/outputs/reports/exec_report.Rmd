@@ -1,0 +1,45 @@
+---
+title: "Untitled"
+author: "Aaron Niecestro"
+date: "2026-09-06"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Executive Summary
+
+The DC Property ML pipeline evaluates multiple machine learning approaches for predicting and classifying residential property values across Washington, DC. The updated workflow provides two complementary binary classification frameworks:
+
+### **Mean Threshold Classification — Reasonable vs Overpriced**  
+This threshold identifies properties priced above the average market level.  
+Models evaluated: **KNN, LDA, QDA, SVM**  
+Key insight:  
+- SVM and KNN provide strong separation between reasonably priced and overpriced homes.  
+- LDA and QDA offer interpretable decision boundaries useful for valuation policy and auditability.
+
+### **Median Threshold Classification — Underpriced vs Overpriced**  
+This threshold creates a balanced split around the median price.  
+Models evaluated: **KNN, LDA, QDA, SVM**  
+Key insight:  
+- Median classification is more stable across neighborhoods and reduces sensitivity to extreme values.  
+- SVM again performs strongly, while KNN captures local neighborhood structure effectively.
+
+### **Regression Models**  
+Random Forest (Optimal) remains the most accurate model for continuous price prediction, outperforming linear, polynomial, and regularized regression approaches. Ensemble methods provide robust predictions suitable for operational deployment.
+
+### **Strategic Takeaways**  
+- Use **Random Forest** for precise price estimation.  
+- Use **Mean Threshold Classification** to flag overpriced properties.  
+- Use **Median Threshold Classification** for balanced risk screening.  
+- Maintain both regression and classification views for decision‑making, pricing strategy, and portfolio management.
+
+### **Next Steps**  
+- Integrate external features (schools, transit, crime, amenities).  
+- Add SHAP explainability for Random Forest and SVM.  
+- Deploy models via API or dashboard for analysts.  
+- Evaluate model stability across time windows and market cycles.

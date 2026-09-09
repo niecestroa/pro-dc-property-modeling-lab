@@ -190,7 +190,7 @@ A structured reference documenting:
 For earlier academic case studies and foundational modeling work, see:
 
 **DC Property Academic Statistical Analysis Portfolio**  
-[https://github.com/niecestroa/dc-property-analysis-academic/tree/main](https://github.com/niecestroa/dc-property-analysis-academic/tree/main)
+[DC Property Academic Version](https://github.com/niecestroa/dc-property-analysis-academic/tree/main)
 
 ---
 

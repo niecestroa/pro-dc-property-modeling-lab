@@ -18,6 +18,37 @@ The goal is to demonstrate **end‑to‑end analytical engineering**, **transpar
 
 ---
 
+## Installation
+
+```bash
+git clone https://github.com/niecestroa/pro-dc-property-modeling-lab.git
+
+cd pro-dc-property-modeling-lab
+
+pip install -r requirements.txt
+```
+
+## Skills Demonstrated
+
+- Exploratory Data Analysis (EDA)
+- Data Cleaning
+- Feature Engineering
+- Property Valuation Modeling
+- Regression Analysis
+- Predictive Modeling
+- Statistical Analysis
+- Model Evaluation
+- Cross Validation
+- Data Visualization
+- Urban Data Analytics
+- Housing Market Analysis
+- Python Programming
+- R Programming
+- SAS Programming
+- Reproducible Research
+
+---
+
 ## **Repository Structure**
 
 The project is organized into four major modeling modules:

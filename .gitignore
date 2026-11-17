@@ -2,13 +2,24 @@
 __pycache__/
 *.py[cod]
 
-# Virtual environments
 venv/
 .venv/
 env/
 
-# Jupyter
 .ipynb_checkpoints/
+
+# R
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+
+# SAS
+*.log
+*.lst
+*.bak
+*.sas7bdat
+*.sas7bcat
 
 # IDEs
 .vscode/
@@ -17,7 +28,6 @@ env/
 # Testing
 .pytest_cache/
 .coverage
-htmlcov/
 
 # Build files
 build/
@@ -27,18 +37,11 @@ dist/
 # Environment variables
 .env
 
-# Models
-*.pkl
-*.joblib
-
-# Data outputs
+# Outputs
 outputs/
-reports/
 figures/
+reports/
 
 # OS files
 .DS_Store
 Thumbs.db
-
-# Logs
-*.log

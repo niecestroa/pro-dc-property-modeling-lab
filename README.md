@@ -234,3 +234,8 @@ The **DC Property Modeling Lab** is designed as a professional modeling environm
 - Clean documentation and communication of modeling decisions  
 
 It serves as a showcase of rigorous modeling practice suitable for data science, biostatistics, and applied analytics roles.
+
+## License
+
+This project is licensed under the MIT License. See the LICENSE file for details.
+
